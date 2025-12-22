@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文件信息 - CryptoBackup</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="bi bi-shield-lock"></i> CryptoBackup
+            </a>
+            <div class="ms-auto">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/"><i class="bi bi-house"></i> 仪表盘</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/upload"><i class="bi bi-upload"></i> 上传</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/genkey"><i class="bi bi-key"></i> 生成密钥</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/logout"><i class="bi bi-box-arrow-right"></i> 退出</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h4 class="mb-0"><i class="bi bi-info-circle"></i> 文件信息</h4>
+                    </div>
+                    <div class="card-body">
+                        {{if .Error}}
+                        <div class="alert alert-danger" role="alert">
+                            <i class="bi bi-exclamation-triangle"></i> {{.Error}}
+                        </div>
+                        {{else}}
+                        <h5 class="mb-3">
+                            <i class="bi bi-file-lock"></i> {{.Name}}
+                        </h5>
+
+                        <table class="table table-borderless">
+                            <tbody>
+                                <tr>
+                                    <th width="30%"><i class="bi bi-folder"></i> 完整路径</th>
+                                    <td><code>{{.Path}}</code></td>
+                                </tr>
+
+                                {{range $key, $value := .Metadata}}
+                                <tr>
+                                    <th>
+                                        {{if eq $key "algorithm"}}
+                                            <i class="bi bi-shield-check"></i> 加密算法
+                                        {{else if eq $key "key_size"}}
+                                            <i class="bi bi-key"></i> 密钥大小
+                                        {{else if eq $key "original_name"}}
+                                            <i class="bi bi-file-text"></i> 原始文件名
+                                        {{else if eq $key "original_size"}}
+                                            <i class="bi bi-hdd"></i> 原始大小
+                                        {{else if eq $key "encrypted_size"}}
+                                            <i class="bi bi-hdd-fill"></i> 加密后大小
+                                        {{else if eq $key "upload_time"}}
+                                            <i class="bi bi-clock"></i> 上传时间
+                                        {{else}}
+                                            <i class="bi bi-info"></i> {{$key}}
+                                        {{end}}
+                                    </th>
+                                    <td>
+                                        {{if eq $key "algorithm"}}
+                                            <span class="badge bg-primary">{{$value}}</span>
+                                        {{else if eq $key "key_size"}}
+                                            {{$value}} 位
+                                        {{else if eq $key "original_size"}}
+                                            {{$value}} 字节
+                                        {{else if eq $key "encrypted_size"}}
+                                            {{$value}} 字节
+                                        {{else}}
+                                            {{$value}}
+                                        {{end}}
+                                    </td>
+                                </tr>
+                                {{end}}
+                            </tbody>
+                        </table>
+
+                        <div class="alert alert-info" role="alert">
+                            <i class="bi bi-info-circle"></i>
+                            <strong>提示：</strong> 此文件已被加密存储，需要正确的密钥才能解密。
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="/" class="btn btn-secondary">
+                                <i class="bi bi-arrow-left"></i> 返回列表
+                            </a>
+                        </div>
+                        {{end}}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="mt-5 py-3 bg-light">
+        <div class="container text-center text-muted">
+            <small>CryptoBackup v1.0.1 - 安全的加密文件备份系统</small>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

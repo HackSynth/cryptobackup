@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>生成密钥 - CryptoBackup</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="bi bi-shield-lock"></i> CryptoBackup
+            </a>
+            <div class="ms-auto">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/"><i class="bi bi-house"></i> 仪表盘</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/upload"><i class="bi bi-upload"></i> 上传</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/logout"><i class="bi bi-box-arrow-right"></i> 退出</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h4 class="mb-0"><i class="bi bi-key"></i> 生成加密密钥</h4>
+                    </div>
+                    <div class="card-body">
+                        {{if .Error}}
+                        <div class="alert alert-danger" role="alert">
+                            <i class="bi bi-exclamation-triangle"></i> {{.Error}}
+                        </div>
+                        {{end}}
+
+                        {{if .GeneratedKey}}
+                        <div class="alert alert-success" role="alert">
+                            <h5><i class="bi bi-check-circle"></i> 密钥生成成功</h5>
+                            <p class="mb-0">密钥大小: {{.Size}} 字节</p>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">生成的密钥：</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control font-monospace" id="generatedKey" value="{{.GeneratedKey}}" readonly>
+                                <button class="btn btn-outline-primary" type="button" onclick="copyKey()">
+                                    <i class="bi bi-clipboard"></i> 复制
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-warning" role="alert">
+                            <i class="bi bi-exclamation-triangle"></i>
+                            <strong>重要提示：</strong> 请妥善保管此密钥，丢失后将无法解密文件！
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <a href="/upload" class="btn btn-primary">
+                                <i class="bi bi-upload"></i> 使用此密钥上传文件
+                            </a>
+                            <button type="button" class="btn btn-secondary" onclick="location.reload()">
+                                <i class="bi bi-arrow-repeat"></i> 生成新密钥
+                            </button>
+                        </div>
+                        {{else}}
+                        <form method="POST" action="/genkey">
+                            <div class="mb-4">
+                                <label for="size" class="form-label">密钥大小（字节）</label>
+                                <select class="form-select" id="size" name="size" required>
+                                    <option value="16">16 字节（128 位）- AES-128</option>
+                                    <option value="24">24 字节（192 位）- AES-192</option>
+                                    <option value="32" selected>32 字节（256 位）- AES-256（推荐）</option>
+                                    <option value="64">64 字节（512 位）</option>
+                                </select>
+                                <div class="form-text">
+                                    <i class="bi bi-shield-check"></i> 推荐使用 32 字节以获得最高安全性
+                                </div>
+                            </div>
+
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary btn-lg">
+                                    <i class="bi bi-key"></i> 生成密钥
+                                </button>
+                            </div>
+                        </form>
+                        {{end}}
+                    </div>
+                </div>
+
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <i class="bi bi-info-circle"></i> 密钥大小说明
+                    </div>
+                    <div class="card-body">
+                        <ul>
+                            <li><strong>16 字节：</strong> AES-128 加密，适合一般用途</li>
+                            <li><strong>24 字节：</strong> AES-192 加密，更高安全性</li>
+                            <li><strong>32 字节：</strong> AES-256 加密，最高安全性（推荐）</li>
+                            <li><strong>64 字节：</strong> 超长密钥，适合特殊场景</li>
+                        </ul>
+                        <p class="mb-0 text-muted small">
+                            <i class="bi bi-lightbulb"></i> 密钥越长，加密强度越高，但处理速度会略有降低
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="mt-5 py-3 bg-light">
+        <div class="container text-center text-muted">
+            <small>CryptoBackup v1.0.1 - 安全的加密文件备份系统</small>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function copyKey() {
+            var keyInput = document.getElementById('generatedKey');
+            keyInput.select();
+            keyInput.setSelectionRange(0, 99999);
+            document.execCommand('copy');
+
+            var btn = event.target.closest('button');
+            var originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="bi bi-check"></i> 已复制';
+            setTimeout(function() {
+                btn.innerHTML = originalText;
+            }, 2000);
+        }
+    </script>
+</body>
+</html>

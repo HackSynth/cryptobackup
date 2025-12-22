@@ -20,6 +20,8 @@ vendor/
 # Build output
 bin/
 dist/
+cryptobackup
+cryptobackup-*
 
 # IDE
 .idea/
@@ -31,3 +33,7 @@ dist/
 # OS
 .DS_Store
 Thumbs.db
+
+# Application data
+backup/
+*.enc

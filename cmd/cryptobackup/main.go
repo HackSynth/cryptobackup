@@ -12,10 +12,13 @@ import (
 	"cryptobackup/pkg/crypto"
 	"cryptobackup/pkg/storage"
 	"cryptobackup/pkg/uploader"
+	"cryptobackup/pkg/web"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 const (
-	version = "1.0.1"
+	version = "1.1.0"
 )
 
 func main() {
@@ -26,6 +29,7 @@ func main() {
 	deleteCmd := flag.NewFlagSet("delete", flag.ExitOnError)
 	infoCmd := flag.NewFlagSet("info", flag.ExitOnError)
 	genkeyCmd := flag.NewFlagSet("genkey", flag.ExitOnError)
+	serveCmd := flag.NewFlagSet("serve", flag.ExitOnError)
 
 	// upload 命令参数
 	uploadFile := uploadCmd.String("file", "", "要上传的本地文件路径")
@@ -55,6 +59,13 @@ func main() {
 
 	// genkey 命令参数
 	genkeySize := genkeyCmd.Int("size", 32, "密钥大小（字节），AES推荐16/24/32")
+
+	// serve 命令参数
+	servePort := serveCmd.Int("port", 8080, "HTTP 服务端口")
+	serveHost := serveCmd.String("host", "0.0.0.0", "服务绑定地址")
+	serveStorage := serveCmd.String("storage", "./backup", "存储路径")
+	serveUsername := serveCmd.String("username", "", "登录用户名（必需）")
+	servePassword := serveCmd.String("password", "", "登录密码（必需）")
 
 	// 检查参数
 	if len(os.Args) < 2 {
@@ -108,6 +119,15 @@ func main() {
 		genkeyCmd.Parse(os.Args[2:])
 		handleGenKey(*genkeySize)
 
+	case "serve":
+		serveCmd.Parse(os.Args[2:])
+		if *serveUsername == "" || *servePassword == "" {
+			fmt.Println("错误: serve 命令需要 -username 和 -password 参数")
+			serveCmd.PrintDefaults()
+			os.Exit(1)
+		}
+		handleServe(*serveHost, *servePort, *serveStorage, *serveUsername, *servePassword)
+
 	case "version":
 		fmt.Printf("cryptobackup version %s\n", version)
 
@@ -134,6 +154,7 @@ func printUsage() {
   delete      删除远程文件
   info        查看文件信息
   genkey      生成随机密钥
+  serve       启动 Web UI 服务器
   version     显示版本信息
   help        显示帮助信息
 
@@ -149,6 +170,9 @@ func printUsage() {
 
   # 列出文件
   cryptobackup list -path / -storage ./backup
+
+  # 启动 Web UI
+  cryptobackup serve -username admin -password yourpassword -port 8080
 
 使用 'cryptobackup <command> -h' 查看各命令的详细帮助
 `, version)
@@ -312,4 +336,52 @@ func handleGenKey(size int) {
 	keyHex := hex.EncodeToString(key)
 	fmt.Printf("生成的密钥 (%d 字节):\n%s\n", size, keyHex)
 	fmt.Println("\n请妥善保管此密钥，丢失后将无法解密文件！")
+}
+
+func handleServe(host string, port int, storagePath, username, password string) {
+	// Hash password with bcrypt
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		fmt.Printf("密码加密失败: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Create storage instance
+	store, err := storage.NewLocalStorage(storagePath)
+	if err != nil {
+		fmt.Printf("创建存储失败: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Generate session secret
+	sessionSecret := make([]byte, 32)
+	if _, err := rand.Read(sessionSecret); err != nil {
+		fmt.Printf("生成会话密钥失败: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Create server configuration
+	config := &web.ServerConfig{
+		Host:          host,
+		Port:          port,
+		StoragePath:   storagePath,
+		Username:      username,
+		PasswordHash:  string(passwordHash),
+		Storage:       store,
+		SessionSecret: hex.EncodeToString(sessionSecret),
+	}
+
+	// Start web server
+	fmt.Printf("\n==============================================\n")
+	fmt.Printf("  CryptoBackup Web UI 启动中...\n")
+	fmt.Printf("==============================================\n\n")
+	fmt.Printf("地址: http://%s:%d\n", host, port)
+	fmt.Printf("用户名: %s\n", username)
+	fmt.Printf("存储路径: %s\n\n", storagePath)
+	fmt.Printf("按 Ctrl+C 停止服务器\n\n")
+
+	if err := web.StartServer(config); err != nil {
+		fmt.Printf("启动服务器失败: %v\n", err)
+		os.Exit(1)
+	}
 }

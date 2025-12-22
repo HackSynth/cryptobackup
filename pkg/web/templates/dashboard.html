@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>仪表盘 - CryptoBackup</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="bi bi-shield-lock"></i> CryptoBackup
+            </a>
+            <div class="ms-auto">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/upload"><i class="bi bi-upload"></i> 上传</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/genkey"><i class="bi bi-key"></i> 生成密钥</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/logout"><i class="bi bi-box-arrow-right"></i> 退出</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2><i class="bi bi-files"></i> 加密文件列表</h2>
+            <div>
+                <a href="/upload" class="btn btn-primary">
+                    <i class="bi bi-upload"></i> 上传文件
+                </a>
+                <a href="/genkey" class="btn btn-secondary">
+                    <i class="bi bi-key"></i> 生成密钥
+                </a>
+            </div>
+        </div>
+
+        {{if .Success}}
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle"></i> {{.Success}}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {{end}}
+
+        {{if .Error}}
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle"></i> {{.Error}}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {{end}}
+
+        <div class="card">
+            <div class="card-body">
+                {{if .Files}}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th><i class="bi bi-file-earmark"></i> 文件名</th>
+                                <th><i class="bi bi-hdd"></i> 大小</th>
+                                <th><i class="bi bi-shield-check"></i> 算法</th>
+                                <th><i class="bi bi-gear"></i> 操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {{range .Files}}
+                            <tr>
+                                <td>
+                                    <i class="bi bi-file-lock"></i> {{.Name}}
+                                </td>
+                                <td>{{.Size}}</td>
+                                <td>
+                                    {{if .Metadata.algorithm}}
+                                        <span class="badge bg-primary">{{.Metadata.algorithm}}</span>
+                                    {{else}}
+                                        <span class="badge bg-secondary">未知</span>
+                                    {{end}}
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <button type="button" class="btn btn-outline-info" onclick="showDownloadModal('{{.Path}}', '{{.Name}}')">
+                                            <i class="bi bi-download"></i> 下载
+                                        </button>
+                                        <a href="/info{{.Path}}" class="btn btn-outline-secondary">
+                                            <i class="bi bi-info-circle"></i> 信息
+                                        </a>
+                                        <button type="button" class="btn btn-outline-danger" onclick="confirmDelete('{{.Path}}', '{{.Name}}')">
+                                            <i class="bi bi-trash"></i> 删除
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {{end}}
+                        </tbody>
+                    </table>
+                </div>
+                {{else}}
+                <div class="text-center py-5">
+                    <i class="bi bi-inbox" style="font-size: 4rem; color: #ccc;"></i>
+                    <p class="text-muted mt-3">暂无加密文件</p>
+                    <a href="/upload" class="btn btn-primary">
+                        <i class="bi bi-upload"></i> 上传第一个文件
+                    </a>
+                </div>
+                {{end}}
+            </div>
+        </div>
+    </div>
+
+    <!-- Download Modal -->
+    <div class="modal fade" id="downloadModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form id="downloadForm" method="GET">
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="bi bi-download"></i> 下载文件</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>文件: <strong id="downloadFileName"></strong></p>
+                        <div class="mb-3">
+                            <label for="downloadAlgorithm" class="form-label">加密算法</label>
+                            <select class="form-select" id="downloadAlgorithm" name="algorithm" required>
+                                <option value="aes">AES-256-GCM</option>
+                                <option value="xor">XOR</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="downloadKey" class="form-label">解密密钥</label>
+                            <input type="text" class="form-control" id="downloadKey" name="key" placeholder="输入十六进制密钥" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-download"></i> 下载</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Modal -->
+    <div class="modal fade" id="deleteModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-trash"></i> 删除文件</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>确定要删除文件 <strong id="deleteFileName"></strong> 吗？</p>
+                    <p class="text-danger"><i class="bi bi-exclamation-triangle"></i> 此操作无法撤销！</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <form id="deleteForm" method="POST" style="display: inline;">
+                        <button type="submit" class="btn btn-danger"><i class="bi bi-trash"></i> 删除</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="mt-5 py-3 bg-light">
+        <div class="container text-center text-muted">
+            <small>CryptoBackup v1.0.1 - 安全的加密文件备份系统</small>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function showDownloadModal(path, name) {
+            document.getElementById('downloadFileName').textContent = name;
+            document.getElementById('downloadForm').action = '/download' + path;
+            var modal = new bootstrap.Modal(document.getElementById('downloadModal'));
+            modal.show();
+        }
+
+        function confirmDelete(path, name) {
+            document.getElementById('deleteFileName').textContent = name;
+            document.getElementById('deleteForm').action = '/delete' + path;
+            var modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+            modal.show();
+        }
+    </script>
+</body>
+</html>

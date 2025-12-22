@@ -1,0 +1,74 @@
+{{define "layout.html"}}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CryptoBackup - 加密文件备份系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .navbar-brand {
+            font-weight: bold;
+        }
+        .content {
+            flex: 1;
+        }
+        footer {
+            background-color: #f8f9fa;
+            padding: 1rem 0;
+            margin-top: auto;
+        }
+    </style>
+</head>
+<body>
+    {{if .ShowNav}}
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="bi bi-shield-lock"></i> CryptoBackup
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/"><i class="bi bi-house"></i> 仪表盘</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/upload"><i class="bi bi-upload"></i> 上传</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/genkey"><i class="bi bi-key"></i> 生成密钥</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/logout"><i class="bi bi-box-arrow-right"></i> 退出</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    {{end}}
+
+    <div class="content">
+        <div class="container mt-4">
+            {{template "content" .}}
+        </div>
+    </div>
+
+    <footer class="mt-5">
+        <div class="container text-center text-muted">
+            <small>CryptoBackup v1.0.1 - 安全的加密文件备份系统</small>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
+{{end}}
