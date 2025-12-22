@@ -9,9 +9,12 @@ permissions:
   contents: write
 
 jobs:
-  build:
-    name: Build and Release
-    runs-on: ubuntu-latest
+  test:
+    name: Test on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -24,21 +27,21 @@ jobs:
       - name: Get dependencies
         run: go mod download
 
-      - name: Run tests
+      - name: Run unit tests
         run: |
-          echo "Running unit tests..."
+          echo "Running unit tests on ${{ matrix.os }}..."
           go test -v ./...
 
-          echo "Running build verification..."
-          go build -v ./cmd/cryptobackup
-
-      - name: Run integration tests
+      - name: Build test binary
         run: |
           echo "Building test binary..."
-          go build -o cryptobackup-test ./cmd/cryptobackup
-          chmod +x cryptobackup-test
+          go build -v -o cryptobackup-test${{ matrix.os == 'windows-latest' && '.exe' || '' }} ./cmd/cryptobackup
 
-          echo "Running integration tests..."
+      - name: Run integration tests (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: |
+          chmod +x cryptobackup-test
+          echo "Running integration tests on ${{ matrix.os }}..."
 
           # Test 1: Version check
           ./cryptobackup-test version
@@ -48,7 +51,7 @@ jobs:
           echo "Generated key: ${KEY:0:20}..."
 
           # Test 3: Create test file
-          echo "Hello, CryptoBackup CI Test!" > test.txt
+          echo "Hello, CryptoBackup CI Test on ${{ matrix.os }}!" > test.txt
 
           # Test 4: Upload with AES
           ./cryptobackup-test upload -file test.txt -remote /ci-test/test.enc -key "$KEY" -algo aes -storage ./test-storage
@@ -61,14 +64,87 @@ jobs:
 
           # Test 7: Verify integrity
           if diff test.txt restored.txt; then
-            echo "✓ Integration tests passed!"
+            echo "✓ Integration tests passed on ${{ matrix.os }}!"
           else
-            echo "✗ Integration tests failed!"
+            echo "✗ Integration tests failed on ${{ matrix.os }}!"
+            exit 1
+          fi
+
+          # Test 8: XOR encryption
+          ./cryptobackup-test upload -file test.txt -remote /ci-test/test-xor.enc -key "$KEY" -algo xor -storage ./test-storage
+          ./cryptobackup-test download -remote /ci-test/test-xor.enc -file restored-xor.txt -key "$KEY" -algo xor -storage ./test-storage
+          if diff test.txt restored-xor.txt; then
+            echo "✓ XOR tests passed!"
+          else
+            echo "✗ XOR tests failed!"
             exit 1
           fi
 
           # Cleanup
-          rm -rf cryptobackup-test test.txt restored.txt test-storage
+          rm -rf cryptobackup-test test.txt restored.txt restored-xor.txt test-storage
+
+      - name: Run integration tests (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Write-Host "Running integration tests on Windows..."
+
+          # Test 1: Version check
+          .\cryptobackup-test.exe version
+
+          # Test 2: Generate key
+          $KeyOutput = .\cryptobackup-test.exe genkey -size 32
+          $Key = ($KeyOutput -split "`n")[1].Trim()
+          Write-Host "Generated key: $($Key.Substring(0,20))..."
+
+          # Test 3: Create test file
+          "Hello, CryptoBackup CI Test on Windows!" | Out-File -FilePath test.txt -Encoding UTF8
+
+          # Test 4: Upload with AES
+          .\cryptobackup-test.exe upload -file test.txt -remote /ci-test/test.enc -key $Key -algo aes -storage ./test-storage
+
+          # Test 5: List files
+          .\cryptobackup-test.exe list -path / -storage ./test-storage
+
+          # Test 6: Download with AES
+          .\cryptobackup-test.exe download -remote /ci-test/test.enc -file restored.txt -key $Key -algo aes -storage ./test-storage
+
+          # Test 7: Verify integrity
+          $original = Get-Content test.txt -Raw
+          $restored = Get-Content restored.txt -Raw
+          if ($original -eq $restored) {
+            Write-Host "✓ Integration tests passed on Windows!"
+          } else {
+            Write-Host "✗ Integration tests failed on Windows!"
+            exit 1
+          }
+
+          # Test 8: XOR encryption
+          .\cryptobackup-test.exe upload -file test.txt -remote /ci-test/test-xor.enc -key $Key -algo xor -storage ./test-storage
+          .\cryptobackup-test.exe download -remote /ci-test/test-xor.enc -file restored-xor.txt -key $Key -algo xor -storage ./test-storage
+          $restoredXor = Get-Content restored-xor.txt -Raw
+          if ($original -eq $restoredXor) {
+            Write-Host "✓ XOR tests passed!"
+          } else {
+            Write-Host "✗ XOR tests failed!"
+            exit 1
+          }
+
+          # Cleanup
+          Remove-Item -Recurse -Force cryptobackup-test.exe, test.txt, restored.txt, restored-xor.txt, test-storage -ErrorAction SilentlyContinue
+
+  build:
+    name: Build and Release
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
 
       - name: Build for multiple platforms
         run: |
