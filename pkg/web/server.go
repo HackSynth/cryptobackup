@@ -1,10 +1,15 @@
 package web
 
 import (
+	"embed"
 	"fmt"
+	"html/template"
 
 	"github.com/gin-gonic/gin"
 )
+
+//go:embed templates/*.html
+var templateFS embed.FS
 
 // Server represents the web server
 type Server struct {
@@ -37,8 +42,9 @@ func setupRouter(handler *Handler) *gin.Engine {
 	router.Use(gin.Recovery())
 	router.Use(LoggerMiddleware())
 
-	// Load HTML templates
-	router.LoadHTMLGlob("pkg/web/templates/*.html")
+	// Load HTML templates from embedded filesystem
+	tmpl := template.Must(template.New("").ParseFS(templateFS, "templates/*.html"))
+	router.SetHTMLTemplate(tmpl)
 
 	// Static files (for future CSS/JS if needed)
 	// router.Static("/static", "./pkg/web/static")
