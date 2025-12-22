@@ -1,0 +1,62 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build and Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Get dependencies
+        run: go mod download
+
+      - name: Build for multiple platforms
+        run: |
+          # Linux AMD64
+          GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o cryptobackup-linux-amd64 ./cmd/cryptobackup
+
+          # Linux ARM64
+          GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o cryptobackup-linux-arm64 ./cmd/cryptobackup
+
+          # macOS AMD64
+          GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o cryptobackup-darwin-amd64 ./cmd/cryptobackup
+
+          # macOS ARM64 (Apple Silicon)
+          GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o cryptobackup-darwin-arm64 ./cmd/cryptobackup
+
+          # Windows AMD64
+          GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o cryptobackup-windows-amd64.exe ./cmd/cryptobackup
+
+      - name: Create checksums
+        run: |
+          sha256sum cryptobackup-* > checksums.txt
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            cryptobackup-linux-amd64
+            cryptobackup-linux-arm64
+            cryptobackup-darwin-amd64
+            cryptobackup-darwin-arm64
+            cryptobackup-windows-amd64.exe
+            checksums.txt
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
