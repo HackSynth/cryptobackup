@@ -24,6 +24,52 @@ jobs:
       - name: Get dependencies
         run: go mod download
 
+      - name: Run tests
+        run: |
+          echo "Running unit tests..."
+          go test -v ./...
+
+          echo "Running build verification..."
+          go build -v ./cmd/cryptobackup
+
+      - name: Run integration tests
+        run: |
+          echo "Building test binary..."
+          go build -o cryptobackup-test ./cmd/cryptobackup
+          chmod +x cryptobackup-test
+
+          echo "Running integration tests..."
+
+          # Test 1: Version check
+          ./cryptobackup-test version
+
+          # Test 2: Generate key
+          KEY=$(./cryptobackup-test genkey -size 32 | grep -v "生成的密钥" | grep -v "请妥善保管" | tr -d '\n' | xargs)
+          echo "Generated key: ${KEY:0:20}..."
+
+          # Test 3: Create test file
+          echo "Hello, CryptoBackup CI Test!" > test.txt
+
+          # Test 4: Upload with AES
+          ./cryptobackup-test upload -file test.txt -remote /ci-test/test.enc -key "$KEY" -algo aes -storage ./test-storage
+
+          # Test 5: List files
+          ./cryptobackup-test list -path / -storage ./test-storage
+
+          # Test 6: Download with AES
+          ./cryptobackup-test download -remote /ci-test/test.enc -file restored.txt -key "$KEY" -algo aes -storage ./test-storage
+
+          # Test 7: Verify integrity
+          if diff test.txt restored.txt; then
+            echo "✓ Integration tests passed!"
+          else
+            echo "✗ Integration tests failed!"
+            exit 1
+          fi
+
+          # Cleanup
+          rm -rf cryptobackup-test test.txt restored.txt test-storage
+
       - name: Build for multiple platforms
         run: |
           # Linux AMD64
