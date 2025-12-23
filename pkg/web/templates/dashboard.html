@@ -1,194 +1,344 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>仪表盘 - CryptoBackup</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
-</head>
-<body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-        <div class="container">
-            <a class="navbar-brand" href="/">
-                <i class="bi bi-shield-lock"></i> CryptoBackup
+{{define "content"}}
+<div class="fade-in">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="text-gradient"><i class="bi bi-files"></i> 加密文件列表</h2>
+        <div>
+            <a href="/upload" class="btn btn-gradient-primary me-2">
+                <i class="bi bi-upload"></i> 上传文件
             </a>
-            <div class="ms-auto">
-                <ul class="navbar-nav">
-                    <li class="nav-item">
-                        <a class="nav-link" href="/upload"><i class="bi bi-upload"></i> 上传</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/genkey"><i class="bi bi-key"></i> 生成密钥</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/logout"><i class="bi bi-box-arrow-right"></i> 退出</a>
-                    </li>
-                </ul>
-            </div>
+            <a href="/genkey" class="btn btn-gradient-success">
+                <i class="bi bi-key"></i> 生成密钥
+            </a>
         </div>
-    </nav>
+    </div>
 
-    <div class="container mt-4">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2><i class="bi bi-files"></i> 加密文件列表</h2>
-            <div>
-                <a href="/upload" class="btn btn-primary">
-                    <i class="bi bi-upload"></i> 上传文件
-                </a>
-                <a href="/genkey" class="btn btn-secondary">
-                    <i class="bi bi-key"></i> 生成密钥
-                </a>
-            </div>
-        </div>
+    {{if .Success}}
+    <div class="alert alert-success alert-dismissible fade show glass-card" role="alert">
+        <i class="bi bi-check-circle"></i> {{.Success}}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {{end}}
 
-        {{if .Success}}
-        <div class="alert alert-success alert-dismissible fade show" role="alert">
-            <i class="bi bi-check-circle"></i> {{.Success}}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-        {{end}}
+    {{if .Error}}
+    <div class="alert alert-danger alert-dismissible fade show glass-card" role="alert">
+        <i class="bi bi-exclamation-triangle"></i> {{.Error}}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {{end}}
 
-        {{if .Error}}
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            <i class="bi bi-exclamation-triangle"></i> {{.Error}}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-        {{end}}
-
-        <div class="card">
-            <div class="card-body">
-                {{if .Files}}
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th><i class="bi bi-file-earmark"></i> 文件名</th>
-                                <th><i class="bi bi-hdd"></i> 大小</th>
-                                <th><i class="bi bi-shield-check"></i> 算法</th>
-                                <th><i class="bi bi-gear"></i> 操作</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {{range .Files}}
-                            <tr>
-                                <td>
-                                    <i class="bi bi-file-lock"></i> {{.Name}}
-                                </td>
-                                <td>{{.Size}}</td>
-                                <td>
-                                    {{if .Metadata.algorithm}}
-                                        <span class="badge bg-primary">{{.Metadata.algorithm}}</span>
-                                    {{else}}
-                                        <span class="badge bg-secondary">未知</span>
-                                    {{end}}
-                                </td>
-                                <td>
-                                    <div class="btn-group btn-group-sm" role="group">
-                                        <button type="button" class="btn btn-outline-info" onclick="showDownloadModal('{{.Path}}', '{{.Name}}')">
-                                            <i class="bi bi-download"></i> 下载
-                                        </button>
-                                        <a href="/info{{.Path}}" class="btn btn-outline-secondary">
-                                            <i class="bi bi-info-circle"></i> 信息
-                                        </a>
-                                        <button type="button" class="btn btn-outline-danger" onclick="confirmDelete('{{.Path}}', '{{.Name}}')">
-                                            <i class="bi bi-trash"></i> 删除
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                            {{end}}
-                        </tbody>
-                    </table>
+    <div class="glass-card mb-4">
+        <div class="row g-3 p-3">
+            <!-- 搜索框 -->
+            <div class="col-md-6">
+                <div class="search-box">
+                    <i class="bi bi-search search-icon"></i>
+                    <input type="text" id="searchInput" class="form-control" placeholder="搜索文件名...">
                 </div>
-                {{else}}
-                <div class="text-center py-5">
-                    <i class="bi bi-inbox" style="font-size: 4rem; color: #ccc;"></i>
-                    <p class="text-muted mt-3">暂无加密文件</p>
-                    <a href="/upload" class="btn btn-primary">
-                        <i class="bi bi-upload"></i> 上传第一个文件
-                    </a>
-                </div>
-                {{end}}
+            </div>
+
+            <!-- 筛选器 -->
+            <div class="col-md-3">
+                <select id="filterType" class="form-select modern-select">
+                    <option value="">所有类型</option>
+                    <option value="image">图片</option>
+                    <option value="document">文档</option>
+                    <option value="video">视频</option>
+                    <option value="archive">压缩包</option>
+                    <option value="other">其他</option>
+                </select>
+            </div>
+
+            <!-- 算法筛选 -->
+            <div class="col-md-3">
+                <select id="filterAlgo" class="form-select modern-select">
+                    <option value="">所有算法</option>
+                    <option value="AES-GCM">AES-GCM</option>
+                    <option value="XOR">XOR</option>
+                </select>
             </div>
         </div>
     </div>
 
-    <!-- Download Modal -->
-    <div class="modal fade" id="downloadModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <form id="downloadForm" method="GET">
-                    <div class="modal-header">
-                        <h5 class="modal-title"><i class="bi bi-download"></i> 下载文件</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    {{if .Files}}
+    <!-- 批量操作工具栏 -->
+    <div class="glass-card mb-3" id="batchToolbar" style="display: none;">
+        <div class="d-flex align-items-center justify-content-between p-3">
+            <div>
+                <input type="checkbox" class="form-check-input me-2" id="selectAll">
+                <label class="form-check-label" for="selectAll">
+                    已选择 <strong id="selectedCount">0</strong> 个文件
+                </label>
+            </div>
+            <div>
+                <button class="btn btn-sm btn-gradient-success me-2" onclick="batchDownload()">
+                    <i class="bi bi-download"></i> 批量下载
+                </button>
+                <button class="btn btn-sm btn-outline-danger" onclick="batchDelete()">
+                    <i class="bi bi-trash"></i> 批量删除
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="glass-card">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0" id="filesTable">
+                <thead>
+                    <tr>
+                        <th style="width: 50px;">
+                            <input type="checkbox" class="form-check-input" id="selectAllHeader">
+                        </th>
+                        <th><i class="bi bi-file-earmark"></i> 文件名</th>
+                        <th><i class="bi bi-hdd"></i> 大小</th>
+                        <th><i class="bi bi-shield-check"></i> 算法</th>
+                        <th><i class="bi bi-clock"></i> 上传时间</th>
+                        <th><i class="bi bi-gear"></i> 操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{range .Files}}
+                    <tr class="file-row" data-filename="{{.Name}}" data-algo="{{.Metadata.algorithm}}" data-path="{{.Path}}">
+                        <td>
+                            <input type="checkbox" class="form-check-input file-checkbox" value="{{.Path}}">
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-file-lock file-icon me-2"></i>
+                                <span class="file-name">{{.Name}}</span>
+                            </div>
+                        </td>
+                        <td>{{.Size}}</td>
+                        <td>
+                            {{if .Metadata.algorithm}}
+                                <span class="badge badge-gradient">{{.Metadata.algorithm}}</span>
+                            {{else}}
+                                <span class="badge bg-secondary">未知</span>
+                            {{end}}
+                        </td>
+                        <td>
+                            {{if .Metadata.upload_time}}
+                                <small class="text-muted">{{.Metadata.upload_time}}</small>
+                            {{else}}
+                                <small class="text-muted">-</small>
+                            {{end}}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button type="button" class="btn btn-outline-info" onclick="showDownloadModal('{{.Path}}', '{{.Name}}')">
+                                    <i class="bi bi-download"></i>
+                                </button>
+                                <a href="/info{{.Path}}" class="btn btn-outline-secondary">
+                                    <i class="bi bi-info-circle"></i>
+                                </a>
+                                <button type="button" class="btn btn-outline-danger" onclick="confirmDelete('{{.Path}}', '{{.Name}}')">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {{end}}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {{else}}
+    <div class="glass-card">
+        <div class="text-center py-5">
+            <i class="bi bi-inbox" style="font-size: 5rem; opacity: 0.3;"></i>
+            <p class="text-muted mt-3 mb-4" style="font-size: 1.1rem;">暂无加密文件</p>
+            <a href="/upload" class="btn btn-gradient-primary btn-lg">
+                <i class="bi bi-upload"></i> 上传第一个文件
+            </a>
+        </div>
+    </div>
+    {{end}}
+</div>
+
+<!-- Download Modal -->
+<div class="modal fade" id="downloadModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="downloadForm" method="GET">
+                <div class="modal-header gradient-primary text-white">
+                    <h5 class="modal-title"><i class="bi bi-download"></i> 下载文件</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>文件: <strong id="downloadFileName"></strong></p>
+                    <div class="mb-3">
+                        <label for="downloadAlgorithm" class="form-label">加密算法</label>
+                        <select class="form-select modern-select" id="downloadAlgorithm" name="algorithm" required>
+                            <option value="aes">AES-256-GCM</option>
+                            <option value="xor">XOR</option>
+                        </select>
                     </div>
-                    <div class="modal-body">
-                        <p>文件: <strong id="downloadFileName"></strong></p>
-                        <div class="mb-3">
-                            <label for="downloadAlgorithm" class="form-label">加密算法</label>
-                            <select class="form-select" id="downloadAlgorithm" name="algorithm" required>
-                                <option value="aes">AES-256-GCM</option>
-                                <option value="xor">XOR</option>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label for="downloadKey" class="form-label">解密密钥</label>
-                            <input type="text" class="form-control" id="downloadKey" name="key" placeholder="输入十六进制密钥" required>
-                        </div>
+                    <div class="mb-3">
+                        <label for="downloadKey" class="form-label">解密密钥</label>
+                        <input type="text" class="form-control modern-input" id="downloadKey" name="key" placeholder="输入十六进制密钥" required>
+                        <small class="text-muted">
+                            <i class="bi bi-info-circle"></i> 请输入加密时使用的密钥
+                        </small>
                     </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                        <button type="submit" class="btn btn-primary"><i class="bi bi-download"></i> 下载</button>
-                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-gradient-primary">
+                        <i class="bi bi-download"></i> 下载
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="bi bi-trash"></i> 删除文件</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>确定要删除文件 <strong id="deleteFileName"></strong> 吗？</p>
+                <div class="alert alert-danger mb-0">
+                    <i class="bi bi-exclamation-triangle"></i> 此操作无法撤销！
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <form id="deleteForm" method="POST" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash"></i> 确认删除
+                    </button>
                 </form>
             </div>
         </div>
     </div>
+</div>
 
-    <!-- Delete Modal -->
-    <div class="modal fade" id="deleteModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title"><i class="bi bi-trash"></i> 删除文件</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <p>确定要删除文件 <strong id="deleteFileName"></strong> 吗？</p>
-                    <p class="text-danger"><i class="bi bi-exclamation-triangle"></i> 此操作无法撤销！</p>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                    <form id="deleteForm" method="POST" style="display: inline;">
-                        <button type="submit" class="btn btn-danger"><i class="bi bi-trash"></i> 删除</button>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// 下载和删除的Modal函数
+function showDownloadModal(path, name) {
+    document.getElementById('downloadFileName').textContent = name;
+    document.getElementById('downloadForm').action = '/download' + path;
+    var modal = new bootstrap.Modal(document.getElementById('downloadModal'));
+    modal.show();
+}
 
-    <footer class="mt-5 py-3 bg-light">
-        <div class="container text-center text-muted">
-            <small>CryptoBackup v1.0.1 - 安全的加密文件备份系统</small>
-        </div>
-    </footer>
+function confirmDelete(path, name) {
+    document.getElementById('deleteFileName').textContent = name;
+    document.getElementById('deleteForm').action = '/delete' + path;
+    var modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+    modal.show();
+}
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        function showDownloadModal(path, name) {
-            document.getElementById('downloadFileName').textContent = name;
-            document.getElementById('downloadForm').action = '/download' + path;
-            var modal = new bootstrap.Modal(document.getElementById('downloadModal'));
-            modal.show();
+// 搜索功能
+document.getElementById('searchInput').addEventListener('keyup', filterFiles);
+document.getElementById('filterType').addEventListener('change', filterFiles);
+document.getElementById('filterAlgo').addEventListener('change', filterFiles);
+
+function filterFiles() {
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    const filterType = document.getElementById('filterType').value;
+    const filterAlgo = document.getElementById('filterAlgo').value;
+    const rows = document.querySelectorAll('.file-row');
+
+    rows.forEach(row => {
+        const filename = row.dataset.filename.toLowerCase();
+        const algo = row.dataset.algo || '';
+
+        // 搜索匹配
+        const matchSearch = filename.includes(searchTerm);
+
+        // 算法匹配
+        const matchAlgo = !filterAlgo || algo === filterAlgo;
+
+        // 类型匹配（简单实现，基于文件扩展名）
+        let matchType = !filterType;
+        if (filterType) {
+            const ext = filename.split('.').pop();
+            switch(filterType) {
+                case 'image':
+                    matchType = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(ext);
+                    break;
+                case 'document':
+                    matchType = ['pdf', 'doc', 'docx', 'txt', 'md', 'xls', 'xlsx'].includes(ext);
+                    break;
+                case 'video':
+                    matchType = ['mp4', 'avi', 'mkv', 'mov', 'wmv'].includes(ext);
+                    break;
+                case 'archive':
+                    matchType = ['zip', 'rar', '7z', 'tar', 'gz'].includes(ext);
+                    break;
+                case 'other':
+                    matchType = !['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'pdf', 'doc', 'docx', 'txt', 'md', 'xls', 'xlsx', 'mp4', 'avi', 'mkv', 'mov', 'wmv', 'zip', 'rar', '7z', 'tar', 'gz'].includes(ext);
+                    break;
+            }
         }
 
-        function confirmDelete(path, name) {
-            document.getElementById('deleteFileName').textContent = name;
-            document.getElementById('deleteForm').action = '/delete' + path;
-            var modal = new bootstrap.Modal(document.getElementById('deleteModal'));
-            modal.show();
-        }
-    </script>
-</body>
-</html>
+        row.style.display = (matchSearch && matchAlgo && matchType) ? '' : 'none';
+    });
+}
+
+// 批量选择功能
+const checkboxes = document.querySelectorAll('.file-checkbox');
+const selectAll = document.getElementById('selectAll');
+const selectAllHeader = document.getElementById('selectAllHeader');
+const batchToolbar = document.getElementById('batchToolbar');
+const selectedCount = document.getElementById('selectedCount');
+
+if (selectAll) {
+    selectAll.addEventListener('change', function() {
+        const visibleCheckboxes = Array.from(checkboxes).filter(cb => cb.closest('.file-row').style.display !== 'none');
+        visibleCheckboxes.forEach(cb => cb.checked = this.checked);
+        updateBatchToolbar();
+    });
+}
+
+if (selectAllHeader) {
+    selectAllHeader.addEventListener('change', function() {
+        const visibleCheckboxes = Array.from(checkboxes).filter(cb => cb.closest('.file-row').style.display !== 'none');
+        visibleCheckboxes.forEach(cb => cb.checked = this.checked);
+        updateBatchToolbar();
+    });
+}
+
+checkboxes.forEach(cb => {
+    cb.addEventListener('change', updateBatchToolbar);
+});
+
+function updateBatchToolbar() {
+    const selected = Array.from(checkboxes).filter(cb => cb.checked);
+    if (selected.length > 0) {
+        batchToolbar.style.display = 'block';
+        selectedCount.textContent = selected.length;
+    } else {
+        batchToolbar.style.display = 'none';
+    }
+}
+
+function batchDownload() {
+    const selected = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
+    if (selected.length === 0) {
+        alert('请先选择要下载的文件');
+        return;
+    }
+    alert('批量下载功能开发中...\n选中了 ' + selected.length + ' 个文件');
+    // TODO: 实现批量下载API
+}
+
+function batchDelete() {
+    const selected = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
+    if (selected.length === 0) {
+        alert('请先选择要删除的文件');
+        return;
+    }
+    if (confirm('确定要删除选中的 ' + selected.length + ' 个文件吗？此操作无法撤销！')) {
+        alert('批量删除功能开发中...');
+        // TODO: 实现批量删除API
+    }
+}
+</script>
+{{end}}

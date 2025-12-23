@@ -4,12 +4,17 @@ import (
 	"embed"
 	"fmt"
 	"html/template"
+	"io/fs"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
 
 //go:embed templates/*.html
 var templateFS embed.FS
+
+//go:embed static/*
+var staticFS embed.FS
 
 // Server represents the web server
 type Server struct {
@@ -46,8 +51,12 @@ func setupRouter(handler *Handler) *gin.Engine {
 	tmpl := template.Must(template.New("").ParseFS(templateFS, "templates/*.html"))
 	router.SetHTMLTemplate(tmpl)
 
-	// Static files (for future CSS/JS if needed)
-	// router.Static("/static", "./pkg/web/static")
+	// Serve static files from embedded filesystem
+	staticFileSystem, err := fs.Sub(staticFS, "static")
+	if err != nil {
+		panic(fmt.Sprintf("Failed to load static files: %v", err))
+	}
+	router.StaticFS("/static", http.FS(staticFileSystem))
 
 	// Public routes (no authentication required)
 	router.GET("/login", handler.LoginPage)
